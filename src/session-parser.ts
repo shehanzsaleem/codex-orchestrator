@@ -204,6 +204,8 @@ export function extractSessionId(logContent: string): string | null {
     /session id:\s*([0-9a-f-]{8,})/i,
     /session_id[:=]\s*([0-9a-f-]{8,})/i,
     /sessionId["\s:=]*([0-9a-f-]{8,})/i,
+    // The interactive TUI prints only this, on exit.
+    /codex resume\s+([0-9a-f-]{8,})/i,
   ];
 
   for (const pattern of patterns) {
