@@ -44,7 +44,7 @@ If you just want the `codex-agent` CLI without the Claude Code plugin:
 # Prerequisites
 brew install tmux              # macOS (or apt/pacman/dnf for Linux)
 npm install -g @openai/codex   # OpenAI Codex CLI
-codex --login                  # Authenticate with OpenAI
+codex login                  # Authenticate with OpenAI
 
 # Install
 git clone https://github.com/kingbootoshi/codex-orchestrator.git ~/.codex-orchestrator
@@ -69,8 +69,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/kingbootoshi/codex-orchestra
 |-----------|---------|---------|
 | [tmux](https://github.com/tmux/tmux) | Terminal multiplexer - agents run in tmux sessions | `brew install tmux` |
 | [Bun](https://bun.sh) | JavaScript runtime - runs the CLI | `curl -fsSL https://bun.sh/install \| bash` |
-| [Codex CLI](https://github.com/openai/codex) | OpenAI's coding agent - the thing being orchestrated | `npm install -g @openai/codex` |
-| OpenAI account | API access for Codex agents | `codex --login` |
+| [Codex CLI](https://github.com/openai/codex) 0.155.0+ | OpenAI's coding agent - the thing being orchestrated (0.155.0+ for the default model, `gpt-6-luna`) | `npm install -g @openai/codex` |
+| OpenAI account | API access for Codex agents | `codex login` |
 
 **Platform support:** macOS and Linux. Windows users should use WSL.
 
@@ -141,11 +141,10 @@ codex-agent send <jobId> "Focus on the authentication module instead"
 | Option | Description |
 |--------|-------------|
 | `-r, --reasoning <level>` | Reasoning effort: `low`, `medium`, `high`, `xhigh` |
-| `-m, --model <model>` | Model name (default: gpt-5.4) |
+| `-m, --model <model>` | Model name (default: gpt-6-luna) |
 | `-w, --wait` | Wait for completion and emit a ping when done |
 | `--notify-on-complete <cmd>` | Shell command to run when the job completes |
 | `-s, --sandbox <mode>` | `read-only`, `workspace-write`, `danger-full-access` |
-| `-f, --file <glob>` | Include files matching glob (repeatable) |
 | `-d, --dir <path>` | Working directory |
 | `--map` | Include codebase map (docs/CODEBASE_MAP.md) |
 | `--strip-ansi` | Remove ANSI control codes and Codex TUI noise from output |
@@ -201,11 +200,11 @@ tmux attach -t codex-agent-abc123
 # (Ctrl+B, D to detach)
 ```
 
-### With File Context
+### Pointing at Specific Files
 
 ```bash
-# Include specific files in the prompt
-codex-agent start "Review these files for bugs" -f "src/auth/**/*.ts" -f "src/api/**/*.ts"
+# Name the files in the prompt; agents read them themselves
+codex-agent start "Review src/auth/ and src/api/ for bugs"
 
 # Include codebase map for orientation
 codex-agent start "Understand the architecture" --map -r high

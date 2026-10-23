@@ -49,7 +49,7 @@ curl -fsSL https://bun.sh/install | bash
 npm install -g @openai/codex
 
 # Authenticate with OpenAI (required)
-codex --login
+codex login
 
 # Install codex-orchestrator CLI
 git clone https://github.com/kingbootoshi/codex-orchestrator.git ~/.codex-orchestrator

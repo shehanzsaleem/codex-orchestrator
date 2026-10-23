@@ -153,7 +153,7 @@ check_codex() {
   echo "  npm install -g @openai/codex"
   echo ""
   echo "Then authenticate with your OpenAI account:"
-  echo "  codex --login"
+  echo "  codex login"
   echo ""
   echo "More info: https://github.com/openai/codex"
   echo ""
@@ -166,7 +166,7 @@ check_codex() {
       if command -v codex &>/dev/null; then
         success "codex CLI installed"
         echo ""
-        warn "You still need to authenticate: codex --login"
+        warn "You still need to authenticate: codex login"
       else
         error "Codex CLI installation failed."
         exit 1
@@ -265,7 +265,7 @@ verify() {
   if ! command -v codex &>/dev/null; then
     warn "Reminder: Install the Codex CLI before using codex-agent:"
     echo "  npm install -g @openai/codex"
-    echo "  codex --login"
+    echo "  codex login"
   fi
 }
 
