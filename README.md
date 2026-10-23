@@ -269,6 +269,10 @@ Each agent costs one Codex process (~40 MB private memory, shared binary pages a
 
 What usually exhausts memory with many agents is what they *run*: ten agents each starting a test runner or compiler that spawns one worker per CPU core. Cap that per project (for example `--maxWorkers=2` for Jest/Vitest, `CARGO_BUILD_JOBS=2`, `MAKEFLAGS=-j2`) or say so in the prompt. On Windows/WSL2, the VM gets only half of host RAM by default; raise `memory=` in `.wslconfig`.
 
+## Credits
+
+Shehan Saleem used [Claude](https://claude.com/claude-code) to improve this project, including the CPU and memory reductions above.
+
 ## License
 
 MIT
