@@ -26,6 +26,12 @@ import type { CompactJobJson, Job } from "./jobs.ts";
 import { isTmuxAvailable, listSessions } from "./tmux.ts";
 import { cleanTerminalOutput } from "./output-cleaner.ts";
 import { buildPromptContext, type BuiltPromptContext } from "./prompt-context.ts";
+import { isCodexVersionAtLeast } from "./codex-bin.ts";
+
+const TMUX_INSTALL_HINT =
+  process.platform === "darwin"
+    ? "brew install tmux"
+    : "your package manager, e.g. sudo apt install tmux";
 
 const HELP = `
 Codex Agent - Delegate tasks to GPT Codex agents (tmux-based)
@@ -46,8 +52,8 @@ Usage:
   codex-agent health                     Check tmux and codex availability
 
 Options:
-  -r, --reasoning <level>    Reasoning effort: low, medium, high, xhigh (default: low)
-  -m, --model <model>        Model name (default: gpt-5.5)
+  -r, --reasoning <level>    Reasoning effort: ${config.reasoningEfforts.join(", ")} (default: ${config.defaultReasoningEffort})
+  -m, --model <model>        Model name (default: ${config.model})
   -s, --sandbox <mode>       Sandbox: read-only, workspace-write, danger-full-access
   -w, --wait                 Wait for completion before exiting
   --notify-on-complete <cmd>  Run command when job completes
@@ -100,6 +106,10 @@ interface Options {
   jobsLimit: number | null;
   jobsAll: boolean;
 }
+
+// Arguments shaped like a flag (or --flag=value, which is not supported).
+// Anything else, e.g. "- fix the tests", is text.
+const OPTION_PATTERN = /^--?[A-Za-z][A-Za-z0-9-]*(=\S*)?$/;
 
 function parseArgs(args: string[]): {
   command: string;
@@ -178,12 +188,23 @@ function parseArgs(args: string[]): {
       options.jobsLimit = Math.floor(parsed);
     } else if (arg === "--all") {
       options.jobsAll = true;
-    } else if (!arg.startsWith("-")) {
-      if (!command) {
-        command = arg;
-      } else {
-        positional.push(arg);
+    } else if (arg === "--") {
+      // Everything after -- is text, e.g. a message that starts with "-x".
+      for (const rest of args.slice(i + 1)) {
+        if (!command) command = rest;
+        else positional.push(rest);
       }
+      break;
+    } else if (OPTION_PATTERN.test(arg)) {
+      // Unknown flags used to be dropped silently, with their value
+      // appended to the prompt.
+      console.error(`Unknown option: ${arg}`);
+      console.error(`Run "codex-agent --help" for options. To pass text that starts with "-", put it after --.`);
+      process.exit(1);
+    } else if (!command) {
+      command = arg;
+    } else {
+      positional.push(arg);
     }
   }
 
@@ -609,7 +630,7 @@ async function main() {
         // Check tmux
         if (!isTmuxAvailable()) {
           console.error("tmux not found");
-          console.error("Install with: brew install tmux");
+          console.error(`Install with: ${TMUX_INSTALL_HINT}`);
           process.exit(1);
         }
         console.log("tmux: OK");
@@ -619,6 +640,14 @@ async function main() {
         try {
           const version = execSync("codex --version", { encoding: "utf-8" }).trim();
           console.log(`codex: ${version}`);
+          // Agents run with the update prompt disabled, so nothing else
+          // tells the user their Codex is too old for the default model.
+          if (isCodexVersionAtLeast(version, config.minCodexVersion) === false) {
+            console.error(
+              `Warning: the default model ${config.model} needs Codex ${config.minCodexVersion} or newer.`
+            );
+            console.error("Update with: npm install -g @openai/codex@latest");
+          }
         } catch {
           console.error("codex CLI not found");
           console.error("Install with: npm install -g @openai/codex");
@@ -646,7 +675,7 @@ async function main() {
         // Check tmux first
         if (!isTmuxAvailable()) {
           console.error("Error: tmux is required but not installed");
-          console.error("Install with: brew install tmux");
+          console.error(`Install with: ${TMUX_INSTALL_HINT}`);
           process.exit(1);
         }
 
@@ -959,7 +988,7 @@ async function main() {
           // Check tmux first
           if (!isTmuxAvailable()) {
             console.error("Error: tmux is required but not installed");
-            console.error("Install with: brew install tmux");
+            console.error(`Install with: ${TMUX_INSTALL_HINT}`);
             process.exit(1);
           }
 
