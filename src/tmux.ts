@@ -261,24 +261,15 @@ export function createSession(options: {
  * Send a message to a running codex session
  */
 export function sendMessage(sessionName: string, message: string): boolean {
-  if (!sessionExists(sessionName)) {
+  // -l types the text literally. Without it a message that is a key name
+  // ("Escape", "Up", "C-c") is pressed as that key, and one starting with "-"
+  // is parsed as send-keys options.
+  if (!runTmux(["send-keys", "-t", sessionName, "-l", "--", message]).ok) {
     return false;
   }
-
-  try {
-    const escapedMessage = message.replace(/'/g, "'\\''");
-    execSync(`tmux send-keys -t "${sessionName}" '${escapedMessage}'`, {
-      stdio: "pipe",
-    });
-    // Small delay before Enter for TUI to process
-    spawnSync("sleep", ["0.3"]);
-    execSync(`tmux send-keys -t "${sessionName}" Enter`, {
-      stdio: "pipe",
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  // Small delay before Enter for TUI to process
+  spawnSync("sleep", ["0.3"]);
+  return runTmux(["send-keys", "-t", sessionName, "Enter"]).ok;
 }
 
 /**

@@ -107,6 +107,9 @@ interface Options {
   jobsAll: boolean;
 }
 
+// Arguments shaped like a flag. Anything else (e.g. "- fix the tests") is text.
+const OPTION_PATTERN = /^--?[A-Za-z][A-Za-z0-9-]*$/;
+
 function parseArgs(args: string[]): {
   command: string;
   positional: string[];
@@ -184,12 +187,23 @@ function parseArgs(args: string[]): {
       options.jobsLimit = Math.floor(parsed);
     } else if (arg === "--all") {
       options.jobsAll = true;
-    } else if (!arg.startsWith("-")) {
-      if (!command) {
-        command = arg;
-      } else {
-        positional.push(arg);
+    } else if (arg === "--") {
+      // Everything after -- is text, e.g. a message that starts with "-x".
+      for (const rest of args.slice(i + 1)) {
+        if (!command) command = rest;
+        else positional.push(rest);
       }
+      break;
+    } else if (OPTION_PATTERN.test(arg)) {
+      // Unknown flags used to be dropped silently, with their value
+      // appended to the prompt.
+      console.error(`Unknown option: ${arg}`);
+      console.error(`Run "codex-agent --help" for options. To pass text that starts with "-", put it after --.`);
+      process.exit(1);
+    } else if (!command) {
+      command = arg;
+    } else {
+      positional.push(arg);
     }
   }
 

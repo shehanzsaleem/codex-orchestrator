@@ -243,3 +243,37 @@ describe("CLI output contract", () => {
     expect(stdout).toContain("Map metadata total_tokens: 9,094");
   });
 });
+
+describe("argument parsing", () => {
+  test("rejects unknown options instead of folding their values into the prompt", () => {
+    const home = makeHome();
+    const result = runCli(home, ["start", "review", "-f", "src/**/*.ts", "--dry-run"]);
+
+    expect(result.exitCode).toBe(1);
+    expect(text(result.stderr)).toContain("Unknown option: -f");
+  });
+
+  test("keeps text that starts with a dash", () => {
+    const home = makeHome();
+    const result = runCli(home, ["start", "- fix the tests", "--dry-run"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(text(result.stdout)).toContain("Task prompt: ~4 tokens, 15 bytes");
+  });
+
+  test("treats everything after -- as text", () => {
+    const home = makeHome();
+    const result = runCli(home, ["start", "--dry-run", "--", "-x"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(text(result.stdout)).toContain("Task prompt: ~1 tokens, 2 bytes");
+  });
+
+  test("send passes a bulleted message through to the job", () => {
+    const home = makeHome();
+    const result = runCli(home, ["send", "missing", "- fix the tests"]);
+
+    // Reaching the job lookup means the message survived parsing.
+    expect(text(result.stderr)).toContain("Could not send to job missing");
+  });
+});
