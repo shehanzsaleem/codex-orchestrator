@@ -15,7 +15,7 @@ Spawn parallel coding agents, monitor their progress, send follow-up messages mi
 **Step 1:** Add the marketplace:
 
 ```
-/plugin marketplace add kingbootoshi/codex-orchestrator
+/plugin marketplace add shehanzsaleem/codex-orchestrator
 ```
 
 **Step 2:** Install the plugin:
@@ -47,7 +47,7 @@ npm install -g @openai/codex   # OpenAI Codex CLI
 codex login                  # Authenticate with OpenAI
 
 # Install
-git clone https://github.com/kingbootoshi/codex-orchestrator.git ~/.codex-orchestrator
+git clone https://github.com/shehanzsaleem/codex-orchestrator.git ~/.codex-orchestrator
 cd ~/.codex-orchestrator && bun install
 
 # Add to PATH (add this line to ~/.bashrc or ~/.zshrc)
@@ -60,7 +60,7 @@ codex-agent health
 Or use the automated installer:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/kingbootoshi/codex-orchestrator/main/plugins/codex-orchestrator/scripts/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/shehanzsaleem/codex-orchestrator/main/plugins/codex-orchestrator/scripts/install.sh)
 ```
 
 ### Requirements

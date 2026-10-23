@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 INSTALL_DIR="${CODEX_ORCHESTRATOR_HOME:-$HOME/.codex-orchestrator}"
-REPO_URL="https://github.com/kingbootoshi/codex-orchestrator.git"
+REPO_URL="https://github.com/shehanzsaleem/codex-orchestrator.git"
 
 info() { echo -e "${BLUE}[info]${NC} $1"; }
 success() { echo -e "${GREEN}[ok]${NC} $1"; }
