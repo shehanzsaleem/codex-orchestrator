@@ -246,6 +246,12 @@ function applyJobsLimit<T>(jobs: T[], limit: number | null): T[] {
   return jobs.slice(0, limit);
 }
 
+// await-turn runs once per agent for the agent's whole life. Each poll only
+// reads small job files; checks that spawn tmux (session liveness, context
+// limit, timeout) run every AWAIT_TURN_FULL_CHECK_EVERY polls.
+const AWAIT_TURN_POLL_MS = 500;
+const AWAIT_TURN_FULL_CHECK_EVERY = 10;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -525,7 +531,7 @@ async function awaitTurn(jobId: string, json: boolean): Promise<void> {
   const contextWindowText = "Codex ran out of room in the model's context window";
 
   while (!stopped) {
-    await sleep(500);
+    await sleep(AWAIT_TURN_POLL_MS);
     awaitTurnPollCount += 1;
 
     const signal = getTurnSignal(jobId);
@@ -541,7 +547,17 @@ async function awaitTurn(jobId: string, json: boolean): Promise<void> {
       process.exit(result.exitCode);
     }
 
-    if (awaitTurnPollCount % 5 === 0) {
+    // The notify and completion hooks write the signal and job files directly,
+    // so between full checks reading those files is enough to notice changes.
+    const fullCheck = awaitTurnPollCount % AWAIT_TURN_FULL_CHECK_EVERY === 0;
+    if (!fullCheck) {
+      const latest = loadJob(jobId);
+      if (latest && (latest.status === "running" || latest.status === "pending")) {
+        continue;
+      }
+    }
+
+    if (fullCheck) {
       const paneOutput = getJobOutput(jobId, 10);
       if (paneOutput && (paneOutput.includes("ran out of room") || paneOutput.includes("context window"))) {
         const current = loadJob(jobId);

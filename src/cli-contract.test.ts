@@ -4,6 +4,13 @@ import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 import type { Job } from "./jobs.ts";
 
+// Fixture timestamps sit shortly before "now" so jobs are never derived as
+// STALE (no activity for config.defaultTimeout) when the suite runs later.
+const FIXTURE_BASE_MS = Date.now() - 10 * 60 * 1000;
+function fixtureTime(seconds: number): string {
+  return new Date(FIXTURE_BASE_MS + seconds * 1000).toISOString();
+}
+
 function makeHome(): string {
   const home = mkdtempSync(join(tmpdir(), "codex-agent-cli-contract-"));
   mkdirSync(join(home, ".codex-agent", "jobs"), { recursive: true });
@@ -23,8 +30,8 @@ function writeJob(home: string, overrides: Partial<Job> & Pick<Job, "id">): void
     reasoningEffort: "low",
     sandbox: "workspace-write",
     cwd: "/tmp/project",
-    createdAt: "2026-05-28T12:00:00.000Z",
-    startedAt: "2026-05-28T12:00:01.000Z",
+    createdAt: fixtureTime(0),
+    startedAt: fixtureTime(1),
     turnState: "working",
     ...overrides,
   };
@@ -103,7 +110,7 @@ describe("CLI output contract", () => {
     writeJob(home, {
       id: "completed",
       status: "completed",
-      completedAt: "2026-05-28T12:05:00.000Z",
+      completedAt: fixtureTime(300),
       turnState: "idle",
       turnsCompleted: 1,
       lastAgentMessage: "Completion message.",
@@ -129,14 +136,14 @@ describe("CLI output contract", () => {
     writeJob(home, {
       id: "failed",
       status: "failed",
-      completedAt: "2026-05-28T12:05:00.000Z",
+      completedAt: fixtureTime(300),
       error: "Exploded",
     });
     writeJob(home, {
       id: "cancelled",
       status: "failed",
       processState: "cancelled",
-      completedAt: "2026-05-28T12:05:00.000Z",
+      completedAt: fixtureTime(300),
     });
     writeJob(home, {
       id: "stale",
@@ -165,7 +172,7 @@ describe("CLI output contract", () => {
     writeJob(home, {
       id: "completed-json",
       status: "completed",
-      completedAt: "2026-05-28T12:05:00.000Z",
+      completedAt: fixtureTime(300),
       lastAgentMessage: "Done JSON.",
     });
 
@@ -204,7 +211,7 @@ describe("CLI output contract", () => {
         JSON.stringify({
           turnId: "turn-1",
           lastAgentMessage: "Signal message.",
-          timestamp: "2026-05-28T12:04:00.000Z",
+          timestamp: fixtureTime(240),
         }),
       );
     }, 100);

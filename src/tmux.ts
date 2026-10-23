@@ -2,6 +2,7 @@
 
 import { execSync, spawnSync } from "child_process";
 import { config } from "./config.ts";
+import { resolveCodexCommand } from "./codex-bin.ts";
 
 export interface TmuxSession {
   name: string;
@@ -44,10 +45,25 @@ export function buildCodexArgs(options: {
     `-c`, shellQuote(`model="${model}"`),
     `-c`, shellQuote(`model_reasoning_effort="${options.reasoningEffort}"`),
     `-c`, shellQuote("skip_update_check=true"),
+    // Spinner/shimmer redraws cost CPU in codex, script and tmux and bloat the log.
+    `-c`, shellQuote("tui.animations=false"),
     `-c`, shellQuote(notifyConfig),
     `--sandbox`, shellQuote(options.sandbox),
     `--ask-for-approval`, shellQuote("never"),
   ].join(" ");
+}
+
+/**
+ * Run a tmux subcommand without a shell. These calls sit on polling paths, so
+ * avoiding the extra /bin/sh per call halves the processes spawned.
+ */
+function runTmux(args: string[], maxBuffer?: number): { ok: boolean; stdout: string } {
+  const result = spawnSync("tmux", args, {
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+    ...(maxBuffer ? { maxBuffer } : {}),
+  });
+  return { ok: result.status === 0, stdout: result.stdout ?? "" };
 }
 
 function listManagedSessionNames(): string[] {
@@ -100,12 +116,7 @@ export function isTmuxAvailable(): boolean {
  * Check if a tmux session exists
  */
 export function sessionExists(sessionName: string): boolean {
-  try {
-    execSync(`tmux has-session -t "${sessionName}" 2>/dev/null`, { stdio: "pipe" });
-    return true;
-  } catch {
-    return false;
-  }
+  return runTmux(["has-session", "-t", sessionName]).ok;
 }
 
 /**
@@ -142,7 +153,7 @@ export function createSession(options: {
 
     const indexFile = `${config.jobsDir}/index.json`;
     const completionScript = [
-      `import { readFileSync, writeFileSync, renameSync } from "fs";`,
+      `import { readFileSync, writeFileSync, renameSync, openSync, fstatSync, readSync, closeSync } from "fs";`,
       `const jobPath = process.argv[1];`,
       `const exitCode = Number(process.argv[2] ?? "0");`,
       `const indexPath = process.argv[3];`,
@@ -159,6 +170,18 @@ export function createSession(options: {
       `  }`,
       `  return usage;`,
       `}`,
+      `function readTail(path, maxBytes) {`,
+      `  const fd = openSync(path, "r");`,
+      `  try {`,
+      `    const size = fstatSync(fd).size;`,
+      `    const length = Math.min(size, maxBytes);`,
+      `    const buffer = Buffer.alloc(length);`,
+      `    readSync(fd, buffer, 0, length, size - length);`,
+      `    return buffer.toString("utf-8");`,
+      `  } finally {`,
+      `    closeSync(fd);`,
+      `  }`,
+      `}`,
       `try {`,
       `  const job = JSON.parse(readFileSync(jobPath, "utf-8"));`,
       `  if (job.status === "running" || job.status === "pending") {`,
@@ -169,7 +192,7 @@ export function createSession(options: {
       `      job.error = \`Codex exited with code \${exitCode}\`;`,
       `    }`,
       `    try {`,
-      `      const usage = parseUsage(readFileSync(logPath, "utf-8"));`,
+      `      const usage = parseUsage(readTail(logPath, ${config.logTailBytes}));`,
       `      if (usage) job.usage = usage;`,
       `    } catch {}`,
       `    writeFileSync(jobPath, JSON.stringify(job, null, 2));`,
@@ -203,7 +226,12 @@ export function createSession(options: {
     // macOS: script -q <file> <command>
     // Linux: script -q -c "<command>" <file>
     const isLinux = process.platform === "linux";
-    const codexCmd = `codex ${codexArgs} "$(cat ${shellQuote(promptFile)})"`;
+    const codex = resolveCodexCommand();
+    const codexEnv = Object.entries(codex.env)
+      .map(([key, value]) => `${key}=${shellQuote(value)}`)
+      .join(" ");
+    const codexBin = codexEnv ? `env ${codexEnv} ${shellQuote(codex.path)}` : shellQuote(codex.path);
+    const codexCmd = `${codexBin} ${codexArgs} "$(cat ${shellQuote(promptFile)})"`;
     const shellCmd = isLinux
       ? `script -q -e -c ${shellQuote(codexCmd)} ${shellQuote(logFile)}; ${completionHook}`
       : `script -q ${shellQuote(logFile)} ${codexCmd}; ${completionHook}`;
@@ -274,64 +302,40 @@ export function capturePane(
   sessionName: string,
   options: { lines?: number; start?: number } = {}
 ): string | null {
-  if (!sessionExists(sessionName)) {
-    return null;
+  // capture-pane fails on a missing session, so no separate has-session check.
+  const args = ["capture-pane", "-t", sessionName, "-p"];
+  if (options.start !== undefined) {
+    args.push("-S", String(options.start));
   }
 
-  try {
-    let cmd = `tmux capture-pane -t "${sessionName}" -p`;
+  const { ok, stdout: output } = runTmux(args);
+  if (!ok) return null;
 
-    if (options.start !== undefined) {
-      cmd += ` -S ${options.start}`;
-    }
-
-    const output = execSync(cmd, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
-
-    if (options.lines) {
-      const allLines = output.split("\n");
-      return allLines.slice(-options.lines).join("\n");
-    }
-
-    return output;
-  } catch {
-    return null;
+  if (options.lines) {
+    const allLines = output.split("\n");
+    return allLines.slice(-options.lines).join("\n");
   }
+
+  return output;
 }
 
 /**
  * Get the full scrollback buffer
  */
 export function captureFullHistory(sessionName: string): string | null {
-  if (!sessionExists(sessionName)) {
-    return null;
-  }
-
-  try {
-    // Capture from start of history (-S -) to end
-    const output = execSync(
-      `tmux capture-pane -t "${sessionName}" -p -S -`,
-      { encoding: "utf-8", maxBuffer: 50 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] }
-    );
-    return output;
-  } catch {
-    return null;
-  }
+  // Capture from start of history (-S -) to end
+  const { ok, stdout } = runTmux(
+    ["capture-pane", "-t", sessionName, "-p", "-S", "-"],
+    50 * 1024 * 1024
+  );
+  return ok ? stdout : null;
 }
 
 /**
  * Kill a tmux session
  */
 export function killSession(sessionName: string): boolean {
-  if (!sessionExists(sessionName)) {
-    return false;
-  }
-
-  try {
-    execSync(`tmux kill-session -t "${sessionName}"`, { stdio: "pipe" });
-    return true;
-  } catch {
-    return false;
-  }
+  return runTmux(["kill-session", "-t", sessionName]).ok;
 }
 
 /**
@@ -429,18 +433,12 @@ export function getAttachCommand(sessionName: string): string {
  * Check if the session's codex process is still running
  */
 export function isSessionActive(sessionName: string): boolean {
-  if (!sessionExists(sessionName)) {
-    return false;
-  }
-
   try {
     // Check if the pane has a running process
-    const pid = execSync(
-      `tmux list-panes -t "${sessionName}" -F "#{pane_pid}"`,
-      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
-    ).trim();
+    const { ok, stdout } = runTmux(["list-panes", "-t", sessionName, "-F", "#{pane_pid}"]);
+    const pid = stdout.trim();
 
-    if (!pid) return false;
+    if (!ok || !pid) return false;
 
     // Check if that process is still running
     process.kill(parseInt(pid, 10), 0);

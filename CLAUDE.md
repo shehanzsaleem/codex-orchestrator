@@ -28,6 +28,7 @@ bun run src/cli.ts health
 | `src/cli.ts` | CLI commands and argument parsing |
 | `src/jobs.ts` | Job lifecycle and persistence |
 | `src/tmux.ts` | tmux session management |
+| `src/codex-bin.ts` | Resolve the native codex binary behind the npm wrapper |
 | `src/config.ts` | Configuration constants |
 | `src/files.ts` | File loading for context injection |
 | `src/session-parser.ts` | Parse Codex session files for metadata |

@@ -19,6 +19,10 @@ export const config = {
   // Default inactivity timeout in minutes for running jobs
   defaultTimeout: 60,
 
+  // Agent logs grow for the whole session; exit info (token usage, resume id)
+  // is printed at the end, so parsers read only this many bytes from the tail.
+  logTailBytes: 256 * 1024,
+
   // Default number of jobs to show in listings
   jobsListLimit: 20,
 

@@ -1,6 +1,17 @@
 // Job management for async codex agent execution with tmux
 
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, statSync, renameSync } from "fs";
+import {
+  closeSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import { join, resolve, sep } from "path";
 import { config, ReasoningEffort, SandboxMode } from "./config.ts";
 import { randomBytes } from "crypto";
@@ -373,17 +384,46 @@ function isInactiveTimedOut(job: Job): boolean {
   return Date.now() - lastActivityMs > timeoutMinutes * 60 * 1000;
 }
 
-function loadSessionData(jobId: string): ParsedSessionData | null {
+function readRange(fd: number, position: number, length: number): string {
+  const buffer = Buffer.alloc(length);
+  const bytesRead = readSync(fd, buffer, 0, length, position);
+  return buffer.toString("utf-8", 0, bytesRead);
+}
+
+/**
+ * Read only the ends of a job log. Logs record every TUI redraw and grow for
+ * the whole session; what we parse from them (session id, token usage) is
+ * printed at the start or the end, and these reads happen on polling paths.
+ */
+function readLogEnds(jobId: string, ends: "tail" | "head-and-tail"): string | null {
   const logFile = getJobArtifactPath(jobId, ".log");
   if (!logFile) return null;
 
-  let logContent: string;
-
+  let fd: number;
   try {
-    logContent = readFileSync(logFile, "utf-8");
+    fd = openSync(logFile, "r");
   } catch {
     return null;
   }
+
+  try {
+    const size = fstatSync(fd).size;
+    const max = config.logTailBytes;
+    const tail = readRange(fd, Math.max(0, size - max), Math.min(size, max));
+    if (ends === "tail" || size <= max) return tail;
+
+    const head = readRange(fd, 0, Math.min(max, size - max));
+    return `${head}\n${tail}`;
+  } catch {
+    return null;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function loadSessionData(jobId: string): ParsedSessionData | null {
+  const logContent = readLogEnds(jobId, "head-and-tail");
+  if (logContent === null) return null;
 
   const sessionId = extractSessionId(logContent);
   if (!sessionId) return null;
@@ -395,14 +435,8 @@ function loadSessionData(jobId: string): ParsedSessionData | null {
 }
 
 function loadCodexUsage(jobId: string): CodexTokenUsage | null {
-  const logFile = getJobArtifactPath(jobId, ".log");
-  if (!logFile) return null;
-
-  try {
-    return parseCodexTokenUsage(readFileSync(logFile, "utf-8"));
-  } catch {
-    return null;
-  }
+  const tail = readLogEnds(jobId, "tail");
+  return tail === null ? null : parseCodexTokenUsage(tail);
 }
 
 function isSameUsage(a: CodexTokenUsage | undefined, b: CodexTokenUsage): boolean {

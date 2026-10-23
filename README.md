@@ -259,6 +259,16 @@ See [plugins/codex-orchestrator/README.md](plugins/codex-orchestrator/README.md)
 - Use `-s read-only` for research tasks that shouldn't modify files
 - Kill stuck jobs with `codex-agent kill <id>` only as a last resort
 
+## Running Many Agents
+
+Each agent costs one Codex process (~40 MB private memory, shared binary pages aside) plus one `await-turn` waiter (~20-35 MB) on the orchestrator side. To keep that flat when running many agents in parallel:
+
+- **Waiters are cheap.** `await-turn` only reads small job files every 500 ms and checks tmux every 5 s. Log parsing reads just the head and tail of the log, so cost no longer grows as sessions get longer.
+- **No Node wrapper.** When `codex` is the npm package, its Node launcher stays resident for the whole session. codex-agent starts the native binary from the same install directly instead. Set `CODEX_AGENT_CODEX_BIN` to force a specific binary (`CODEX_AGENT_CODEX_BIN=codex` restores the wrapper).
+- **No TUI animations.** Agents run with `tui.animations=false`, which stops spinner redraws in Codex, `script` and tmux.
+
+What usually exhausts memory with many agents is what they *run*: ten agents each starting a test runner or compiler that spawns one worker per CPU core. Cap that per project (for example `--maxWorkers=2` for Jest/Vitest, `CARGO_BUILD_JOBS=2`, `MAKEFLAGS=-j2`) or say so in the prompt. On Windows/WSL2, the VM gets only half of host RAM by default; raise `memory=` in `.wslconfig`.
+
 ## License
 
 MIT

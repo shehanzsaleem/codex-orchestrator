@@ -29,6 +29,18 @@ describe("codex launch args", () => {
     expect(args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
   });
 
+  test("disables TUI animations so idle redraws do not burn CPU", () => {
+    const args = buildCodexArgs({
+      model: "gpt-5.5",
+      reasoningEffort: "low",
+      sandbox: "workspace-write",
+      notifyHook: "/tmp/notify-hook.ts",
+      jobId: "job-anim",
+    });
+
+    expect(args).toContain("-c 'tui.animations=false'");
+  });
+
   test("rejects malicious model text before building a shell command", () => {
     expect(() =>
       buildCodexArgs({
