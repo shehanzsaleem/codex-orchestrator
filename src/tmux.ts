@@ -44,7 +44,9 @@ export function buildCodexArgs(options: {
   return [
     `-c`, shellQuote(`model="${model}"`),
     `-c`, shellQuote(`model_reasoning_effort="${options.reasoningEffort}"`),
-    `-c`, shellQuote("skip_update_check=true"),
+    // Otherwise a new Codex release stops every agent at an "Update available"
+    // prompt with "Update now" preselected, and the next `send` would accept it.
+    `-c`, shellQuote("check_for_update_on_startup=false"),
     // Spinner/shimmer redraws cost CPU in codex, script and tmux and bloat the log.
     `-c`, shellQuote("tui.animations=false"),
     `-c`, shellQuote(notifyConfig),

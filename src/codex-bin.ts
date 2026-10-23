@@ -93,3 +93,23 @@ export function resolveCodexCommand(
 
   return PLAIN_CODEX;
 }
+
+function parseVersion(text: string): number[] | null {
+  const match = text.match(/(\d+)\.(\d+)\.(\d+)/);
+  return match ? match.slice(1, 4).map(Number) : null;
+}
+
+/**
+ * Compare `codex --version` output (e.g. "codex-cli 0.164.0") with a minimum
+ * "x.y.z". Returns null when the output has no recognizable version.
+ */
+export function isCodexVersionAtLeast(versionOutput: string, minimum: string): boolean | null {
+  const actual = parseVersion(versionOutput);
+  const required = parseVersion(minimum);
+  if (!actual || !required) return null;
+
+  for (let i = 0; i < 3; i++) {
+    if (actual[i] !== required[i]) return actual[i]! > required[i]!;
+  }
+  return true;
+}

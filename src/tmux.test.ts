@@ -41,6 +41,20 @@ describe("codex launch args", () => {
     expect(args).toContain("-c 'tui.animations=false'");
   });
 
+  test("disables the startup update prompt that would block unattended agents", () => {
+    const args = buildCodexArgs({
+      model: "gpt-6-luna",
+      reasoningEffort: "low",
+      sandbox: "workspace-write",
+      notifyHook: "/tmp/notify-hook.ts",
+      jobId: "job-update",
+    });
+
+    expect(args).toContain("-c 'check_for_update_on_startup=false'");
+    // Not a Codex setting; it was silently ignored.
+    expect(args).not.toContain("skip_update_check");
+  });
+
   test("rejects malicious model text before building a shell command", () => {
     expect(() =>
       buildCodexArgs({
