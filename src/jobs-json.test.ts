@@ -7,6 +7,13 @@ import { buildPromptContext } from "./prompt-context.ts";
 import { getJobsJson, getStatusJson, saveJob, type Job } from "./jobs.ts";
 import { updateJobTurn } from "./watcher.ts";
 
+// Fixture timestamps sit shortly before "now" so jobs are never derived as
+// STALE (no activity for config.defaultTimeout) when the suite runs later.
+const FIXTURE_BASE_MS = Date.now() - 10 * 60 * 1000;
+function fixtureTime(seconds: number): string {
+  return new Date(FIXTURE_BASE_MS + seconds * 1000).toISOString();
+}
+
 const originalJobsDir = config.jobsDir;
 const originalJobsIndexFile = config.jobsIndexFile;
 
@@ -27,8 +34,8 @@ function jobFixture(overrides: Partial<Job> & Pick<Job, "id">): Job {
     reasoningEffort: "low",
     sandbox: "workspace-write",
     cwd: "/tmp/project",
-    createdAt: "2026-05-28T12:00:00.000Z",
-    startedAt: "2026-05-28T12:00:01.000Z",
+    createdAt: fixtureTime(0),
+    startedAt: fixtureTime(1),
     turnState: "working",
     ...overrides,
   };
@@ -62,7 +69,7 @@ describe("job JSON contract", () => {
         turnState: "idle",
         turnsCompleted: 1,
         lastAgentMessage: "Ready for parent input.",
-        lastTurnCompletedAt: "2026-05-28T12:03:00.000Z",
+        lastTurnCompletedAt: fixtureTime(180),
       }),
     );
     writeFileSync(
@@ -123,8 +130,8 @@ describe("job JSON contract", () => {
       saveJob(
         jobFixture({
           id: `job-${index}`,
-          createdAt: `2026-05-28T12:00:0${index}.000Z`,
-          startedAt: `2026-05-28T12:00:1${index}.000Z`,
+          createdAt: fixtureTime(index),
+          startedAt: fixtureTime(10 + index),
         }),
       );
     }
@@ -152,7 +159,7 @@ describe("job JSON contract", () => {
     updateJobTurn("notify", {
       turnId: "turn-1",
       lastAgentMessage: "OK",
-      timestamp: "2026-05-28T12:04:00.000Z",
+      timestamp: fixtureTime(240),
     });
 
     const job = JSON.parse(readFileSync(join(config.jobsDir, "notify.json"), "utf-8"));
@@ -161,6 +168,6 @@ describe("job JSON contract", () => {
     expect(job.turnCount).toBe(1);
     expect(job.turnsCompleted).toBe(1);
     expect(job.lastAgentMessage).toBe("OK");
-    expect(job.lastTurnCompletedAt).toBe("2026-05-28T12:04:00.000Z");
+    expect(job.lastTurnCompletedAt).toBe(fixtureTime(240));
   });
 });
