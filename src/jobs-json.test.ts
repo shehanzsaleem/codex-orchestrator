@@ -125,6 +125,25 @@ describe("job JSON contract", () => {
     });
   });
 
+  test("usage is read from the tail of a log larger than the read window", () => {
+    saveJob(jobFixture({ id: "long-session", status: "completed", completedAt: fixtureTime(300) }));
+    const redrawNoise = "\x1b[2K\x1b[1G• Working (12s • esc to interrupt)\r\n".repeat(
+      Math.ceil((config.logTailBytes * 4) / 40),
+    );
+    writeFileSync(
+      join(config.jobsDir, "long-session.log"),
+      `${redrawNoise}Token usage: total=2,000 input=1,500 (+ 1,000 cached) output=500\n` +
+        "To continue this session, run codex resume 01a1687c-ad1f-7332-bb22-7e242dbf933b\n",
+    );
+
+    expect(getStatusJson("long-session")?.job.usage).toEqual({
+      total: 2000,
+      input: 1500,
+      cached_input: 1000,
+      output: 500,
+    });
+  });
+
   test("jobs JSON limit returns exactly N entries unless all is passed", () => {
     for (let index = 0; index < 5; index += 1) {
       saveJob(

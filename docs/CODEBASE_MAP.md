@@ -137,6 +137,9 @@ codex-agent/
 
 **Key Behaviors**:
 - Uses `script` command to log all output
+- Launches the native codex binary directly when `codex` is the npm wrapper (`src/codex-bin.ts`, override with `CODEX_AGENT_CODEX_BIN`)
+- Runs agents with `tui.animations=false`
+- Polling-path tmux calls use `spawnSync` without a shell
 - Auto-dismisses codex update prompts (sends "3")
 - Long prompts (>5000 chars) use load-buffer instead of send-keys
 - Completion marker: "[codex-agent: Session complete"
