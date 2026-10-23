@@ -60,7 +60,7 @@ export interface Job {
   turnsCompleted?: number;
   turnCount?: number;
   lastTurnCompletedAt?: string;
-  lastAgentMessage?: string;
+  lastAgentMessage?: string | null;
   turnState?: LegacyTurnState;
   blockerKind?: BlockerKind | null;
   promptEstimatedTokens?: number;
