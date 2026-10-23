@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "fs";
+import { closeSync, existsSync, openSync, readSync, readdirSync, readFileSync } from "fs";
 import type { Dirent } from "fs";
 import { extname, join } from "path";
 
@@ -265,4 +265,31 @@ export function parseSessionFile(sessionFilePath: string): ParsedSessionData | n
   }
 
   return parseJsonSession(content);
+}
+
+/**
+ * Read the session_meta payload from the first line of a JSONL rollout file.
+ * That line embeds the model instructions (~20 KB), so read a bounded prefix.
+ */
+export function readSessionMeta(sessionFilePath: string): Record<string, unknown> | null {
+  let fd: number;
+  try {
+    fd = openSync(sessionFilePath, "r");
+  } catch {
+    return null;
+  }
+
+  try {
+    const buffer = Buffer.alloc(256 * 1024);
+    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0);
+    const text = buffer.toString("utf-8", 0, bytesRead);
+    const newline = text.indexOf("\n");
+    const record = parseJsonLine(newline === -1 ? text : text.slice(0, newline));
+    if (!isRecord(record) || record.type !== "session_meta") return null;
+    return isRecord(record.payload) ? record.payload : null;
+  } catch {
+    return null;
+  } finally {
+    closeSync(fd);
+  }
 }

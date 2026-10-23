@@ -62,6 +62,8 @@ export interface Job {
   lastTurnCompletedAt?: string;
   lastAgentMessage?: string | null;
   turnState?: LegacyTurnState;
+  // Codex thread the agent runs on; turn events from other threads are ignored
+  codexThreadId?: string;
   blockerKind?: BlockerKind | null;
   promptEstimatedTokens?: number;
   promptBytes?: number;
