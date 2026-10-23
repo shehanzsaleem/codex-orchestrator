@@ -107,8 +107,9 @@ interface Options {
   jobsAll: boolean;
 }
 
-// Arguments shaped like a flag. Anything else (e.g. "- fix the tests") is text.
-const OPTION_PATTERN = /^--?[A-Za-z][A-Za-z0-9-]*$/;
+// Arguments shaped like a flag (or --flag=value, which is not supported).
+// Anything else, e.g. "- fix the tests", is text.
+const OPTION_PATTERN = /^--?[A-Za-z][A-Za-z0-9-]*(=\S*)?$/;
 
 function parseArgs(args: string[]): {
   command: string;

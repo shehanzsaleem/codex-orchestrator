@@ -251,6 +251,10 @@ describe("argument parsing", () => {
 
     expect(result.exitCode).toBe(1);
     expect(text(result.stderr)).toContain("Unknown option: -f");
+
+    const withValue = runCli(home, ["start", "review", "--model=gpt-6-sol", "--dry-run"]);
+    expect(withValue.exitCode).toBe(1);
+    expect(text(withValue.stderr)).toContain("Unknown option: --model=gpt-6-sol");
   });
 
   test("keeps text that starts with a dash", () => {
