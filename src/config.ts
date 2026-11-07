@@ -2,7 +2,10 @@
 
 export const config = {
   // Default model
-  model: "gpt-5.5",
+  model: "gpt-6-luna",
+
+  // Oldest Codex CLI that knows the default model (its minimal_client_version)
+  minCodexVersion: "0.155.0",
 
   // Reasoning effort levels
   reasoningEfforts: ["low", "medium", "high", "xhigh"] as const,

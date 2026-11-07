@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 INSTALL_DIR="${CODEX_ORCHESTRATOR_HOME:-$HOME/.codex-orchestrator}"
-REPO_URL="https://github.com/kingbootoshi/codex-orchestrator.git"
+REPO_URL="https://github.com/shehanzsaleem/codex-orchestrator.git"
 
 info() { echo -e "${BLUE}[info]${NC} $1"; }
 success() { echo -e "${GREEN}[ok]${NC} $1"; }
@@ -153,7 +153,7 @@ check_codex() {
   echo "  npm install -g @openai/codex"
   echo ""
   echo "Then authenticate with your OpenAI account:"
-  echo "  codex --login"
+  echo "  codex login"
   echo ""
   echo "More info: https://github.com/openai/codex"
   echo ""
@@ -166,7 +166,7 @@ check_codex() {
       if command -v codex &>/dev/null; then
         success "codex CLI installed"
         echo ""
-        warn "You still need to authenticate: codex --login"
+        warn "You still need to authenticate: codex login"
       else
         error "Codex CLI installation failed."
         exit 1
@@ -265,7 +265,7 @@ verify() {
   if ! command -v codex &>/dev/null; then
     warn "Reminder: Install the Codex CLI before using codex-agent:"
     echo "  npm install -g @openai/codex"
-    echo "  codex --login"
+    echo "  codex login"
   fi
 }
 

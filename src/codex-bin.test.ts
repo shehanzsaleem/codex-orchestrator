@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFile
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { resolveCodexCommand } from "./codex-bin.ts";
+import { isCodexVersionAtLeast, resolveCodexCommand } from "./codex-bin.ts";
 
 const TRIPLE = "x86_64-unknown-linux-musl";
 
@@ -97,5 +97,22 @@ describe("codex binary resolution", () => {
     });
 
     expect(command).toEqual({ path: "/opt/codex/bin/codex", env: {} });
+  });
+});
+
+describe("codex version check", () => {
+  test.each([
+    ["codex-cli 0.164.0", true],
+    ["codex-cli 0.155.0", true],
+    ["codex-cli 0.154.9", false],
+    ["codex-cli 0.99.0", false],
+    ["codex-cli 1.0.0", true],
+    ["codex-cli 0.155.0-alpha.3", true],
+  ] as const)("%s against 0.155.0 -> %p", (output, expected) => {
+    expect(isCodexVersionAtLeast(output, "0.155.0")).toBe(expected);
+  });
+
+  test("returns null when the output has no version", () => {
+    expect(isCodexVersionAtLeast("command not found", "0.155.0")).toBeNull();
   });
 });

@@ -1,9 +1,11 @@
 import { readFileSync, writeFileSync, unlinkSync, statSync } from "fs";
 import { resolve, sep } from "path";
 import { config } from "./config.ts";
+import { findSessionFile, readSessionMeta } from "./session-parser.ts";
 
 export interface TurnEvent {
   turnId: string;
+  threadId?: string | null;
   lastAgentMessage: string | null;
   timestamp: string;
 }
@@ -93,6 +95,9 @@ export function updateJobTurn(jobId: string, event: TurnEvent): void {
       ? truncateText(event.lastAgentMessage, 500)
       : null;
     job.turnState = "idle";
+    if (event.threadId && !job.codexThreadId) {
+      job.codexThreadId = event.threadId;
+    }
     writeFileSync(jobPath, JSON.stringify(job, null, 2));
   } catch {
     // Job file may not exist or be corrupt - skip silently
@@ -110,4 +115,44 @@ export function setJobTurnWorking(jobId: string): void {
   } catch {
     // Skip silently
   }
+}
+
+/**
+ * Codex also reports agent-turn-complete for threads it runs on its own, such
+ * as generating a task title, so only turns on the agent's main thread count.
+ * Until a turn has recorded that thread on the job (codexThreadId), the main
+ * thread is the one whose first input is the job prompt, or failing that one
+ * with a persisted session started by the user.
+ */
+export function isMainThreadTurn(
+  jobId: string,
+  threadId: string | null,
+  inputMessages: unknown
+): boolean {
+  // Older Codex payloads carry no thread id; accept them as before.
+  if (!threadId) return true;
+
+  const jobPath = getArtifactPath(jobId, ".json");
+  const promptPath = getArtifactPath(jobId, ".prompt");
+  if (!jobPath || !promptPath) return false;
+
+  let job: { codexThreadId?: unknown };
+  try {
+    job = JSON.parse(readFileSync(jobPath, "utf-8"));
+  } catch {
+    return true;
+  }
+  if (typeof job.codexThreadId === "string") return job.codexThreadId === threadId;
+
+  const firstInput = Array.isArray(inputMessages) ? inputMessages[0] : undefined;
+  if (typeof firstInput === "string") {
+    try {
+      if (firstInput.trim() === readFileSync(promptPath, "utf-8").trim()) return true;
+    } catch {
+      // No prompt file; fall through to the session check.
+    }
+  }
+
+  const sessionFile = findSessionFile(threadId);
+  return !!sessionFile && readSessionMeta(sessionFile)?.thread_source === "user";
 }

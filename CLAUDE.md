@@ -19,6 +19,10 @@ bun run src/cli.ts --help
 
 # Health check
 bun run src/cli.ts health
+
+# Tests and typecheck (both run in CI)
+bun test
+bun run typecheck
 ```
 
 ## Key Files
@@ -50,7 +54,7 @@ plugins/codex-orchestrator/         # the plugin
 ## Dependencies
 
 - **Runtime**: Bun, tmux, codex CLI
-- **NPM**: glob (file matching)
+- **NPM**: none at runtime; dev only: typescript, @types/bun
 
 ## Notes
 

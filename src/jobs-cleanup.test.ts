@@ -19,7 +19,6 @@ function setTempJobsDir(): string {
 
 function jobFixture(overrides: Partial<Job> & Pick<Job, "id">): Job {
   return {
-    id: overrides.id,
     status: "completed",
     prompt: "Test prompt",
     model: "gpt-5.5",

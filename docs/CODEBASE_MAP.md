@@ -86,7 +86,7 @@ codex-agent/
 | `SandboxMode` | type | "read-only" \| "workspace-write" \| "danger-full-access" |
 
 **Key Values**:
-- `model`: "gpt-5.4"
+- `model`: "gpt-6-luna"
 - `jobsDir`: `~/.codex-agent/jobs`
 - `tmuxPrefix`: "codex-agent"
 - `defaultTimeout`: 60 minutes
@@ -95,23 +95,14 @@ codex-agent/
 
 ### src/files.ts
 
-**Purpose**: File loading utilities for context injection into prompts
+**Purpose**: Codebase map lookup for `--map` (agents read other files themselves)
 
 **Exports**:
 | Export | Description |
 |--------|-------------|
-| `loadFiles(patterns, baseDir)` | Load files matching glob patterns |
 | `estimateTokens(text)` | Rough token count (~4 chars/token) |
-| `formatPromptWithFiles(prompt, files)` | Inject files as markdown code blocks |
-| `loadCodebaseMap(cwd)` | Find CODEBASE_MAP.md or ARCHITECTURE.md |
-
-**Dependencies**: `glob` npm package
-
-**Filters Applied**:
-- Skip binary files (null byte detection)
-- Skip files > 500KB
-- Deduplicate matches
-- Support negation patterns (!)
+| `findCodebaseMap(cwd)` | Find docs/CODEBASE_MAP.md, CODEBASE_MAP.md or docs/ARCHITECTURE.md |
+| `loadCodebaseMap(cwd)` | Content of the map found by `findCodebaseMap` |
 
 ---
 
@@ -140,8 +131,8 @@ codex-agent/
 - Launches the native codex binary directly when `codex` is the npm wrapper (`src/codex-bin.ts`, override with `CODEX_AGENT_CODEX_BIN`)
 - Runs agents with `tui.animations=false`
 - Polling-path tmux calls use `spawnSync` without a shell
-- Auto-dismisses codex update prompts (sends "3")
-- Long prompts (>5000 chars) use load-buffer instead of send-keys
+- Disables Codex's startup update prompt (`check_for_update_on_startup=false`)
+- Prompt is passed to codex as an argument (`"$(cat <id>.prompt)"`); `send` types follow-ups with `send-keys -l`
 - Completion marker: "[codex-agent: Session complete"
 
 ---
@@ -199,7 +190,6 @@ codex-agent/
 | `-r, --reasoning` | low, medium, high, xhigh |
 | `-m, --model` | Model name |
 | `-s, --sandbox` | read-only, workspace-write, danger-full-access |
-| `-f, --file` | Include files (glob, repeatable) |
 | `-d, --dir` | Working directory |
 | `--map` | Include codebase map |
 | `--dry-run` | Preview without executing |
@@ -269,7 +259,7 @@ sequenceDiagram
 ## Gotchas
 
 1. **Fixed delays**: Uses hardcoded sleep values (0.3-1s) for tmux TUI sync
-2. **Update prompt skip**: Automatically sends "3" to dismiss codex updates
+2. **Turn events**: Codex also reports turns for internal threads (task titles); the notify hook only counts the job's main thread (`codexThreadId`)
 3. **Shell escaping**: Single quotes escaped as `'\''`
 4. **Platform**: Unix-like only (requires tmux, script command)
 5. **Log files**: May contain ANSI terminal codes
@@ -290,5 +280,5 @@ sequenceDiagram
 **To change tmux behavior**:
 - Edit `src/tmux.ts` (createSession for startup, sendMessage for input)
 
-**To add file filtering**:
-- Edit `src/files.ts` (loadFiles function)
+**To change codebase map lookup**:
+- Edit `src/files.ts` (findCodebaseMap)

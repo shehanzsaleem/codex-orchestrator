@@ -118,15 +118,12 @@ function isTerminalProcessState(processState: ProcessState): boolean {
   );
 }
 
+function toPositiveInt(value: number | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
+
 function normalizeTurnsCompleted(job: JobStateInput): number {
-  const turnsCompleted =
-    Number.isFinite(job.turnsCompleted) && job.turnsCompleted > 0
-      ? Math.floor(job.turnsCompleted)
-      : 0;
-  const turnCount =
-    Number.isFinite(job.turnCount) && job.turnCount > 0 ? Math.floor(job.turnCount) : 0;
-  const value = Math.max(turnsCompleted, turnCount);
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  return Math.max(toPositiveInt(job.turnsCompleted), toPositiveInt(job.turnCount));
 }
 
 export function normalizeJobProcessState(job: JobStateInput): ProcessState {
@@ -145,7 +142,7 @@ export function normalizeJobProcessState(job: JobStateInput): ProcessState {
 
 export function normalizeJobLifecycle<T extends JobStateInput>(
   job: T
-): T & NormalizedJobLifecycle {
+): Omit<T, keyof NormalizedJobLifecycle> & NormalizedJobLifecycle {
   const processState = normalizeJobProcessState(job);
   const turnsCompleted = normalizeTurnsCompleted(job);
   const hasContextLimit =

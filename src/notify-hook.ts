@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { updateJobTurn, writeSignalFile, type TurnEvent } from "./watcher.ts";
+import { isMainThreadTurn, updateJobTurn, writeSignalFile, type TurnEvent } from "./watcher.ts";
 
 type NotifyPayload = {
   type?: string;
@@ -31,8 +31,12 @@ function main(): void {
   const payload = parsePayload(rawPayload);
   if (!payload || payload.type !== "agent-turn-complete") return;
 
+  const threadId = toStringOrNull(payload["thread-id"]);
+  if (!isMainThreadTurn(jobId, threadId, payload["input-messages"])) return;
+
   const event: TurnEvent = {
     turnId: toStringOrFallback(payload["turn-id"]),
+    threadId,
     lastAgentMessage: toStringOrNull(payload["last-assistant-message"]),
     timestamp: new Date().toISOString(),
   };

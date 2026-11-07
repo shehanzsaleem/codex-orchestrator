@@ -98,7 +98,7 @@ Before codex-agent can run, three things must be installed:
 2. **Bun** - JavaScript runtime (runs the CLI)
 3. **OpenAI Codex CLI** - The coding agent being orchestrated
 
-The user must also be **authenticated with OpenAI** (`codex --login`) so agents can make API calls.
+The user must also be **authenticated with OpenAI** (`codex login`) so agents can make API calls.
 
 ### Quick Check
 
@@ -125,7 +125,7 @@ bash ~/.codex-orchestrator/plugins/codex-orchestrator/scripts/install.sh
 After installation, the user must authenticate with OpenAI if they haven't already:
 
 ```bash
-codex --login
+codex login
 ```
 
 **All dependencies use official sources only.** tmux from system package managers, Bun from bun.sh, Codex CLI from npm. No third-party scripts or unknown URLs.
@@ -238,11 +238,11 @@ The CLI ships with strong defaults so most commands need minimal flags:
 
 | Setting | Default | Why |
 |---------|---------|-----|
-| Model | `gpt-5.5` | Full capability model |
+| Model | `gpt-6-luna` | Fast model for focused, high-volume work; pass `-m` for heavier tasks |
 | Reasoning | `low` | Efficient default; raise with `-r high` or `-r xhigh` for harder work |
 | Sandbox | `workspace-write` | Agents can modify files by default |
 
-You almost never need to override these. The main flags you'll use are `--map` (include codebase context), `-s read-only` (for research tasks), and `-f` (include specific files).
+You almost never need to override these. The main flags you'll use are `--map` (include codebase context) and `-s read-only` (for research tasks). To point an agent at specific files, name them in the prompt; agents read files themselves.
 
 ## Turn-Aware Orchestration
 
@@ -370,11 +370,11 @@ codex-bg -t -- codex-agent start "task"
 # Research (read-only - override sandbox)
 codex-agent start "Investigate auth flow for vulnerabilities" --map -s read-only
 
-# Implementation (defaults are perfect - high reasoning, workspace-write)
+# Implementation (defaults: low reasoning, workspace-write; add -r high for harder work)
 codex-agent start "Implement the auth refactor per PRD" --map
 
-# With file context
-codex-agent start "Review these modules" --map -f "src/auth/**/*.ts" -f "src/api/**/*.ts"
+# Point at specific files by naming them in the prompt
+codex-agent start "Review src/auth/ and src/api/" --map
 ```
 
 ### Monitoring Agents
@@ -431,7 +431,6 @@ codex-agent health                 # verify codex + tmux available
 |------|-------|--------|-------------|
 | `--reasoning` | `-r` | low, medium, high, xhigh | Reasoning depth |
 | `--sandbox` | `-s` | read-only, workspace-write, danger-full-access | File access level |
-| `--file` | `-f` | glob | Include files (repeatable) |
 | `--map` | | flag | Include docs/CODEBASE_MAP.md |
 | `--dir` | `-d` | path | Working directory |
 | `--model` | `-m` | string | Model override |
